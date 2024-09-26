@@ -101,7 +101,7 @@ BindFrameStep((dt) => {
 	const entity = userent.GetCharacter();
 	if (!entity) return;
 
-	const delta = UserInputService.GetMouseDelta().mul(0.5);
+	const delta = GameController.Controllers.InputController.GetInputDelta();
 
 	const cf_CurrentOrientation = entity.GetViewPosition();
 
