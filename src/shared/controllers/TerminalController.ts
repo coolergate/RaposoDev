@@ -69,11 +69,16 @@ class TerminalController extends GameController {
 					// Monke sees "return;". monke sees "GOOD COUDE!!!"
 				}
 
-				let value: string | number = list_SplitCommand[0];
+				let value: string | number | boolean = list_SplitCommand[0];
 
 				const tonum = tonumber(value);
 				if (tonumber(termval.defaultval) && tonum !== undefined) {
 					value = tonum;
+				}
+
+				if (typeIs(termval.defaultval, "boolean")) {
+					const tobool = tonum !== undefined && tonum > 0;
+					value = tobool;
 				}
 
 				const [success, errorMessage] = pcall(() => termval.set(value));
