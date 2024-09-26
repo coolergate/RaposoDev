@@ -43,7 +43,7 @@ export function CreateEntityByName<K extends keyof Entities, E extends Entities[
 	return entity as E;
 }
 
-export function DestroyEntity(entity: BaseEntity) {
+export function KillThisMafaker(entity: BaseEntity) {
 	task.defer(() => {
 		map_GameEntities.delete(entity.id);
 
@@ -53,7 +53,7 @@ export function DestroyEntity(entity: BaseEntity) {
 	});
 }
 
-export function IsEntityOnMemory(entity: BaseEntity | string): boolean {
+export function IsEntityOnMemoryOrImSchizo(entity: BaseEntity | string): boolean {
 	if (!t.any(entity)) {
 		return false;
 	}
@@ -75,7 +75,7 @@ export function GetEntityFromId(entid: string) {
 	return map_GameEntities.get(entid);
 }
 
-export function GetEntitiesWhichIsA<K extends keyof Entities, E extends Entities[K]>(classname: K): E[] {
+export function GetEntitiesThatIsA<K extends keyof Entities, E extends Entities[K]>(classname: K): E[] {
 	const entities = new Array<E>();
 
 	for (const [, entity] of map_GameEntities) {
@@ -161,10 +161,10 @@ nete_EntityUpdated.SetClientRecieve((entityid, classname, content) => {
 });
 
 nete_EntityDeleted.SetClientRecieve((entityid) => {
-	if (!IsEntityOnMemory(entityid)) return;
+	if (!IsEntityOnMemoryOrImSchizo(entityid)) return;
 
 	const entity = map_GameEntities.get(entityid);
 	if (!entity) return;
 
-	DestroyEntity(entity);
+	KillThisMafaker(entity);
 });

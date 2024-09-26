@@ -1,7 +1,7 @@
 import { ReplicatedStorage, RunService } from "@rbxts/services";
 import { t } from "@rbxts/t";
 import GameController from "shared/controllers/prefab/GameController";
-import { GetEntitiesWhichIsA, GetEntityFromId } from "shared/entities";
+import { GetEntitiesThatIsA, GetEntityFromId } from "shared/entities";
 import UTIL_UTC_Time from "shared/util/utctime";
 
 /* -------------------------------------------------------------------------- */
@@ -90,7 +90,7 @@ function Update(dt: number) {
 		for (const [name, comp] of controllers) comp.FixedUpdate(current_time - n_LastUpdateTime);
 
 		// Update entities
-		for (const entity of GetEntitiesWhichIsA("BaseEntity")) entity.Think(current_time - n_LastUpdateTime);
+		for (const entity of GetEntitiesThatIsA("BaseEntity")) entity.Think(current_time - n_LastUpdateTime);
 
 		n_NextUpdateTime = n_LastUpdateTime + n_Tickrate;
 		n_LastUpdateTime = current_time;

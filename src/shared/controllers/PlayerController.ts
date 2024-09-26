@@ -2,7 +2,7 @@ import { NetworkEvent, NetworkFunction } from "shared/core/network";
 import GameController from "./prefab/GameController";
 import { Players, RunService } from "@rbxts/services";
 import { t } from "@rbxts/t";
-import { CreateEntityByName, DestroyEntity, GetEntityFromId, ReplicateEntity } from "shared/entities";
+import { CreateEntityByName, KillThisMafaker, GetEntityFromId, ReplicateEntity } from "shared/entities";
 import UserEntity from "shared/entities/UserEntity";
 
 declare global {
@@ -49,7 +49,7 @@ class PlayerController extends GameController {
 			if (!ent_UserEntity) return;
 
 			const ent_Character = ent_UserEntity.GetCharacter();
-			if (ent_Character) DestroyEntity(ent_Character);
+			if (ent_Character) KillThisMafaker(ent_Character);
 		});
 	}
 

@@ -1,7 +1,7 @@
 import { envfolders } from "shared/map";
 import envpaths from "./envfolders";
 import { t } from "@rbxts/t";
-import { GetEntitiesWhichIsA } from "shared/entities";
+import { GetEntitiesThatIsA } from "shared/entities";
 
 class TraceParamsManager {
 	constructor(
@@ -20,7 +20,7 @@ class TraceParamsManager {
 			list_SearchContent.push(envfolders.parts);
 		}
 		if (this.FilterContents.includes("Entities")) {
-			for (const entity of GetEntitiesWhichIsA("BaseEntity")) {
+			for (const entity of GetEntitiesThatIsA("BaseEntity")) {
 				if (
 					(this.EntitiesFilterType === "Blacklist" && this.FilterEntities.includes(entity.classname)) ||
 					(this.EntitiesFilterType === "Whitelist" && !this.FilterEntities.includes(entity.classname))
