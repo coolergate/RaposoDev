@@ -2,6 +2,7 @@ import { MarketplaceService, Players, ReplicatedStorage, StarterGui, StarterPlay
 import { InitializeControllers, InitLifecycle } from "shared/core";
 import { InitializeNetworking } from "shared/core/network";
 import { InitializeEntitiesConstructor } from "shared/entities";
+import { storage } from "shared/util/envfolders";
 
 /* -------------------------------------------------------------------------- */
 /*                                  Variables                                 */
@@ -16,7 +17,7 @@ import { InitializeEntitiesConstructor } from "shared/entities";
 /* -------------------------------------------------------------------------- */
 
 // Clean the workspace
-for (const inst of StarterGui.GetChildren()) inst.Destroy();
+for (const inst of StarterGui.GetChildren()) inst.Parent = storage.interface;
 for (const inst of workspace.GetChildren())
 	if (!inst.IsA("Terrain") && (inst.IsA("BasePart") || inst.IsA("Model"))) inst.Destroy();
 

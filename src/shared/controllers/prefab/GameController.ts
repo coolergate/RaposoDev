@@ -1,8 +1,10 @@
+import { Players } from "@rbxts/services";
 import UserEntity from "shared/entities/UserEntity";
 
 class GameController {
 	static Controllers: { [K in keyof Controllers]: Controllers[K] } = {} as typeof GameController.Controllers; // WHAT KIND OF TRICKERY IS THIS
 	static UserEntity: UserEntity;
+	static PlayerInstance = Players.LocalPlayer;
 
 	constructor(name: keyof Controllers) {
 		rawset(GameController.Controllers, name, this);

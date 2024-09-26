@@ -8,6 +8,7 @@ const envpaths = {
 
 	storage: {
 		maps: UTIL_ReplicatedInst(ReplicatedStorage, "Maps", "Folder"),
+		interface: UTIL_ReplicatedInst(ReplicatedStorage, "Interface", "Folder"),
 	},
 
 	entities: UTIL_LocalInst(workspace, "entities", "Folder"),
