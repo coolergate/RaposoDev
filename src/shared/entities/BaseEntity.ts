@@ -2,7 +2,7 @@ import { HttpService } from "@rbxts/services";
 
 declare global {
 	interface Entities {
-		BaseEntity: (typeof BaseEntity)["prototype"];
+		BaseEntity: typeof BaseEntity;
 	}
 }
 
@@ -20,7 +20,7 @@ abstract class BaseEntity {
 		this.set_IsA.add("BaseEntity");
 	}
 
-	IsA<C extends keyof Entities, E extends Entities[C]>(classname: C): this is E {
+	IsA<C extends keyof Entities>(classname: C): this is EntityType<C> {
 		return this.set_IsA.has(classname);
 	}
 

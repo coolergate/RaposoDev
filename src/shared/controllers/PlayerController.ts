@@ -31,8 +31,7 @@ class PlayerController extends GameController {
 			this.set_LoggedPlayers.add(user.UserId);
 
 			// Create user entity
-			const ent_UserEntity = CreateEntityByName("UserEntity");
-			ent_UserEntity.UserId = user.UserId;
+			const ent_UserEntity = CreateEntityByName("UserEntity", undefined, user);
 
 			this.map_PlayersData.set(user.UserId, ent_UserEntity.id);
 

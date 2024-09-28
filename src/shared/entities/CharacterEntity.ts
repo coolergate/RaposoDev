@@ -8,7 +8,7 @@ import envpaths from "shared/util/envfolders";
 
 declare global {
 	interface Entities {
-		CharacterEntity: (typeof CharacterEntity)["prototype"];
+		CharacterEntity: typeof CharacterEntity;
 	}
 }
 

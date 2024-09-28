@@ -6,41 +6,44 @@ import { RunService } from "@rbxts/services";
 /* -------------------------------------------------------------------------- */
 /*                            Interfaces and types                            */
 /* -------------------------------------------------------------------------- */
+declare global {
+	type EntityType<T extends keyof Entities> = Entities[T]["prototype"];
+}
+
 /* -------------------------------------------------------------------------- */
 /*                                  Variables                                 */
 /* -------------------------------------------------------------------------- */
 /* eslint-disable prettier/prettier */
-const nete_EntityCreated = new NetworkEvent<[entityclass: keyof Entities, entityid: string]>("ent_Created");
+const nete_EntityCreated = new NetworkEvent<[entityclass: keyof Entities, entityid: string, ...args: unknown[]]>("ent_Created");
 const nete_EntityDeleted = new NetworkEvent<[entityid: string]>("ent_Deleted");
 const nete_EntityUpdated = new NetworkEvent<[id: string, classname: keyof Entities, content: Map<string, unknown>]>("ent_Updated");
 
-const map_EntityConstructor = new Map<string, new () => BaseEntity>();
+const map_EntityConstructor = new Map<string, new (...args: unknown[]) => BaseEntity>();
 const map_GameEntities = new Map<string, BaseEntity>();
 /* eslint-enable prettier/prettier */
 
 /* -------------------------------------------------------------------------- */
 /*                                  Functions                                 */
 /* -------------------------------------------------------------------------- */
-export function CreateEntityByName<K extends keyof Entities, E extends Entities[K]>(name: K, customid?: string): E {
+export function CreateEntityByName<
+	K extends keyof Entities,
+	E extends Entities[K],
+	C extends E extends new (...args: infer A) => BaseEntity ? A : never[],
+>(name: K, customid?: string, ...args: C): EntityType<K> {
 	const entity_constructor = map_EntityConstructor.get(name);
 	if (!entity_constructor) throw `Unknown entity classname "${name}"`;
 
-	const entity = new entity_constructor();
+	const entity = new entity_constructor(...args);
 	if (customid !== undefined) rawset(entity, "id", customid);
 
 	map_GameEntities.set(entity.id, entity);
 
 	if (RunService.IsServer())
 		task.defer(() => {
-			// nete_EntityCreated.WriteMessage(true, "ALL", [])(entity.classname, entity.id); // Is this really needed?
-			nete_EntityUpdated.WriteMessage(true, "ALL", [])(
-				entity.id,
-				entity.classname,
-				entity.GetReplicatedVaribles(),
-			);
+			nete_EntityCreated.WriteMessage(true, "ALL", [])(entity.classname, entity.id, ...args); // Is this really needed?
 		});
 
-	return entity as E;
+	return entity;
 }
 
 export function KillThisMafaker(entity: BaseEntity) {
@@ -75,13 +78,13 @@ export function GetEntityFromId(entid: string) {
 	return map_GameEntities.get(entid);
 }
 
-export function GetEntitiesThatIsA<K extends keyof Entities, E extends Entities[K]>(classname: K): E[] {
-	const entities = new Array<E>();
+export function GetEntitiesThatIsA<K extends keyof Entities, E extends Entities[K]>(classname: K): E["prototype"][] {
+	const entities = new Array<E["prototype"]>();
 
 	for (const [, entity] of map_GameEntities) {
 		if (!entity.IsA(classname)) continue;
 
-		entities.push(entity as E);
+		entities.push(entity as EntityType<K>);
 	}
 
 	return entities;
@@ -108,12 +111,13 @@ export function InitializeEntitiesConstructor() {
 	}
 }
 
-function Client_GetReplicatedEntityById(classname: keyof Entities, id: string) {
+function Client_GetReplicatedEntityById(classname: keyof Entities, id: string, ...args: unknown[]) {
 	let entity = GetEntityFromId(id);
 	if (!entity || !entity.IsA(classname)) {
 		if (map_GameEntities.has(id)) map_GameEntities.delete(id);
 
-		entity = CreateEntityByName(classname, id) as BaseEntity;
+		// What a fucking disgusting bypass
+		entity = CreateEntityByName(classname, id, ...(args as never[])) as BaseEntity;
 	}
 
 	return entity;
@@ -148,8 +152,8 @@ export function ReplicateEntitySpecific<E extends BaseEntity, K extends keyof E>
 /* -------------------------------------------------------------------------- */
 /*                                    Logic                                   */
 /* -------------------------------------------------------------------------- */
-nete_EntityCreated.SetClientRecieve((classname, entityid) => {
-	Client_GetReplicatedEntityById(classname, entityid);
+nete_EntityCreated.SetClientRecieve((classname, entityid, ...args) => {
+	Client_GetReplicatedEntityById(classname, entityid, ...args);
 });
 
 nete_EntityUpdated.SetClientRecieve((entityid, classname, content) => {

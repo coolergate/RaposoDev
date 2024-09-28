@@ -62,7 +62,10 @@ class SoundController extends GameController {
 	private netm_PlayEntitySound = new NetworkEvent<[name: string, entityid: string]>("sound_PlayEntitySound");
 
 	map_AvailableSoundInstances = new Map<string, SoundPool>();
-	private map_FollowingEntities = new Map<Entities["WorldEntity"]["id"], Array<{ attach: Attachment; snd: Sound }>>();
+	private map_FollowingEntities = new Map<
+		EntityType<"WorldEntity">["id"],
+		Array<{ attach: Attachment; snd: Sound }>
+	>();
 
 	constructor() {
 		super("SoundController");
@@ -99,7 +102,7 @@ class SoundController extends GameController {
 
 	PlayEntitySound(
 		name: string,
-		entity: Entities["WorldEntity"],
+		entity: EntityType<"WorldEntity">,
 		users: Player[] | "ALL" = "ALL",
 		ignore: Player[] = [],
 	) {

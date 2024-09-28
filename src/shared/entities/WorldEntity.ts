@@ -2,7 +2,7 @@ import BaseEntity from "./BaseEntity";
 
 declare global {
 	interface Entities {
-		WorldEntity: (typeof WorldEntity)["prototype"];
+		WorldEntity: typeof WorldEntity;
 	}
 }
 

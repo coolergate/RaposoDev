@@ -4,14 +4,13 @@ import { GetEntityFromId, ReplicateEntity } from ".";
 
 declare global {
 	interface Entities {
-		UserEntity: (typeof UserEntity)["prototype"];
+		UserEntity: typeof UserEntity;
 	}
 
-	type UserButtons = UserEntity["buttons"];
+	type UserButtons = EntityType<"UserEntity">["buttons"];
 }
 
 class UserEntity extends BaseEntity {
-	UserId = 1;
 	CurrentCharacterId = "";
 	private LastCharacterId = this.CurrentCharacterId;
 
@@ -30,18 +29,14 @@ class UserEntity extends BaseEntity {
 		voice: false,
 	};
 
-	constructor() {
+	constructor(public readonly PlayerInstance: Player) {
 		super();
 
 		this.classname = "UserEntity";
 		this.set_IsA.add("UserEntity");
 
-		this.RegisterReplicatedValue("UserId");
+		this.RegisterReplicatedValue("PlayerInstance");
 		this.RegisterReplicatedValue("CurrentCharacterId");
-	}
-
-	GetInstance() {
-		return Players.GetPlayerByUserId(this.UserId || 1);
 	}
 
 	GetCharacter() {

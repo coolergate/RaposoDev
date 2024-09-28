@@ -2,7 +2,7 @@ import WorldEntity from "./WorldEntity";
 
 declare global {
 	interface Entities {
-		HealthEntity: (typeof HealthEntity)["prototype"];
+		HealthEntity: typeof HealthEntity;
 	}
 }
 
@@ -19,6 +19,8 @@ class HealthEntity extends WorldEntity {
 		this.RegisterReplicatedValue("health");
 		this.RegisterReplicatedValue("maxhealth");
 	}
+
+	TakeDamage(amount: number) {}
 }
 
 export = HealthEntity;
