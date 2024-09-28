@@ -32,3 +32,5 @@ class InterfaceController extends GameController {
 		}
 	}
 }
+
+export = InterfaceController;
