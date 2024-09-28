@@ -10,7 +10,7 @@ declare global {
 
 class InterfaceController extends GameController {
 	private ControllerScreenGui = New("ScreenGui")({
-		Parent: GameController.PlayerInstance.WaitForChild("PlayerGui"),
+		Parent: GameController.PlayerInstance?.WaitForChild("PlayerGui"),
 		Enabled: true,
 		DisplayOrder: 99,
 		Name: "ControllerScreenGui",
