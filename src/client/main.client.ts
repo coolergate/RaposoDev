@@ -39,7 +39,7 @@ function UpdateIrisRuntime() {
 		position: workspace.CurrentCamera!.ViewportSize.mul(0.5).sub(new Vector2(250, 100)),
 	}); // Jeez...
 	{
-		Iris.Text([`Raposo Framework - Production build ${ReplicatedStorage.GetAttribute("GameVersion") || ""}`]);
+		Iris.Text([`Raposo Framework`]);
 		Iris.Separator();
 		Iris.Text(["Now loading..."]);
 	}

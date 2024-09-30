@@ -33,17 +33,6 @@ game.BindToClose(() => {
 	for (const player of Players.GetPlayers()) player.Destroy();
 });
 
-// Get game latest update date
-{
-	const asset = MarketplaceService.GetProductInfo(game.PlaceId);
-	const time_stamp = tostring(asset.Updated);
-
-	const split = string.split(time_stamp, "-");
-	const finalText = `${split[0]}.${split[1]}`;
-
-	ReplicatedStorage.SetAttribute("GameVersion", finalText);
-}
-
 // Initialize controllers and networking
 InitializeEntitiesConstructor();
 InitializeNetworking();
