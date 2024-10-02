@@ -1,4 +1,4 @@
-import { NetworkEvent } from "shared/core/network";
+import { NetworkEvent, NetworkFunction } from "shared/core/network";
 import BaseEntity from "./BaseEntity";
 import { t } from "@rbxts/t";
 import { RunService } from "@rbxts/services";
@@ -10,17 +10,27 @@ declare global {
 	type EntityType<T extends keyof Entities> = Entities[T]["prototype"];
 }
 
+type t_EntityReplication = {
+	entclassname: keyof Entities;
+	entid: string;
+	construct_args: unknown[];
+	content: Map<string, unknown>;
+};
+
 /* -------------------------------------------------------------------------- */
 /*                                  Variables                                 */
 /* -------------------------------------------------------------------------- */
-/* eslint-disable prettier/prettier */
-const nete_EntityCreated = new NetworkEvent<[entityclass: keyof Entities, entityid: string, ...args: unknown[]]>("ent_Created");
+const nete_EntityCreated = new NetworkEvent<[entityclass: keyof Entities, entityid: string, ...args: unknown[]]>(
+	"ent_Created",
+);
 const nete_EntityDeleted = new NetworkEvent<[entityid: string]>("ent_Deleted");
-const nete_EntityUpdated = new NetworkEvent<[id: string, classname: keyof Entities, content: Map<string, unknown>]>("ent_Updated");
+const nete_EntityUpdated = new NetworkEvent<[id: string, classname: keyof Entities, content: Map<string, unknown>]>(
+	"ent_Updated",
+);
+const netf_RequestEntities = new NetworkFunction<[], t_EntityReplication[]>("ent_Request");
 
 const map_EntityConstructor = new Map<string, new (...args: unknown[]) => BaseEntity>();
-const map_GameEntities = new Map<string, BaseEntity>();
-/* eslint-enable prettier/prettier */
+const map_GameEntities = new Map<string, { construct_args: unknown[]; ent: BaseEntity }>();
 
 /* -------------------------------------------------------------------------- */
 /*                                  Functions                                 */
@@ -36,7 +46,10 @@ export function CreateEntityByName<
 	const entity = new entity_constructor(...args);
 	if (customid !== undefined) rawset(entity, "id", customid);
 
-	map_GameEntities.set(entity.id, entity);
+	map_GameEntities.set(entity.id, {
+		construct_args: args,
+		ent: entity,
+	});
 
 	if (RunService.IsServer())
 		task.defer(() => {
@@ -65,26 +78,26 @@ export function IsEntityOnMemoryOrImSchizo(entity: BaseEntity | string): boolean
 		return map_GameEntities.has(entity);
 	}
 
-	for (const [id, ent] of map_GameEntities) {
+	for (const [id, info] of map_GameEntities) {
 		if (entity.id !== id) continue;
 
-		return ent === entity;
+		return info.ent === entity;
 	}
 
 	return false;
 }
 
 export function GetEntityFromId(entid: string) {
-	return map_GameEntities.get(entid);
+	return map_GameEntities.get(entid)?.ent;
 }
 
 export function GetEntitiesThatIsA<K extends keyof Entities, E extends Entities[K]>(classname: K): E["prototype"][] {
 	const entities = new Array<E["prototype"]>();
 
-	for (const [, entity] of map_GameEntities) {
-		if (!entity.IsA(classname)) continue;
+	for (const [, info] of map_GameEntities) {
+		if (!info.ent.IsA(classname)) continue;
 
-		entities.push(entity as EntityType<K>);
+		entities.push(info.ent as EntityType<K>);
 	}
 
 	return entities;
@@ -149,6 +162,16 @@ export function ReplicateEntitySpecific<E extends BaseEntity, K extends keyof E>
 	nete_EntityUpdated.WriteMessage(true, players, ignore)(entity.id, entity.classname, values);
 }
 
+export function FetchReplicatedEntities() {
+	for (const info of netf_RequestEntities.InvokeServer().expect()) {
+		const ent = Client_GetReplicatedEntityById(info.entclassname, info.entid, ...info.construct_args);
+
+		for (const [key, value] of info.content) {
+			rawset(ent, key, value);
+		}
+	}
+}
+
 /* -------------------------------------------------------------------------- */
 /*                                    Logic                                   */
 /* -------------------------------------------------------------------------- */
@@ -167,8 +190,26 @@ nete_EntityUpdated.SetClientRecieve((entityid, classname, content) => {
 nete_EntityDeleted.SetClientRecieve((entityid) => {
 	if (!IsEntityOnMemoryOrImSchizo(entityid)) return;
 
-	const entity = map_GameEntities.get(entityid);
-	if (!entity) return;
+	const entinfo = map_GameEntities.get(entityid);
+	if (!entinfo) return;
 
-	KillThisMafaker(entity);
+	KillThisMafaker(entinfo.ent);
+});
+
+netf_RequestEntities.SetServerCallback((user) => {
+	const list_Entities = new Array<t_EntityReplication>();
+
+	for (const [entityid, info] of map_GameEntities) {
+		const buildlist = info.construct_args;
+		const content = info.ent.GetReplicatedVaribles();
+
+		list_Entities.push({
+			entclassname: info.ent.classname,
+			entid: entityid,
+			construct_args: buildlist,
+			content: content,
+		});
+	}
+
+	return list_Entities;
 });

@@ -5,7 +5,7 @@ import { t } from "@rbxts/t";
 import GameController from "shared/controllers/prefab/GameController";
 import { InitializeControllers, InitLifecycle } from "shared/core";
 import { EngineRemoteFunction, InitializeNetworking } from "shared/core/network";
-import { GetEntityFromId, InitializeEntitiesConstructor } from "shared/entities";
+import { FetchReplicatedEntities, GetEntityFromId, InitializeEntitiesConstructor } from "shared/entities";
 import envpaths from "shared/util/envfolders";
 
 /* -------------------------------------------------------------------------- */
@@ -108,6 +108,7 @@ EngineRemoteFunction.InvokeServer();
 InitializeEntitiesConstructor();
 InitializeNetworking();
 InitializeControllers();
+FetchReplicatedEntities();
 
 // Execute scripts
 for (const inst of folder_Scripts.GetChildren()) {
