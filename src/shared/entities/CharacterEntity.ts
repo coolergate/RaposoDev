@@ -5,6 +5,7 @@ import { New } from "@rbxts/fusion";
 import CollisionGroups from "shared/util/collisiongroups";
 import TraceParamsManager from "shared/util/traceparam";
 import envpaths from "shared/util/envfolders";
+import UTIL_INSTEXIST from "shared/util/instexist";
 
 declare global {
 	interface Entities {
@@ -23,6 +24,7 @@ const movementTraceParams = new TraceParamsManager(["World", "Entities"], ["Char
 class MovementEntity extends HealthEntity {
 	readonly part!: Part;
 	private vforce!: VectorForce;
+	private sensor!: ControllerPartSensor;
 
 	v3_LastFootstepPosition = new Vector3();
 	n_LastFootstepTime = 0;
@@ -45,6 +47,8 @@ class MovementEntity extends HealthEntity {
 
 		this.RegisterReplicatedValue("part");
 
+		this.size = new Vector3(2, 5, 2);
+
 		if (RunService.IsClient()) {
 			this.part = New("Part")({
 				Parent: envpaths.entities,
@@ -59,6 +63,11 @@ class MovementEntity extends HealthEntity {
 
 			const attachment = New("Attachment")({
 				Parent: this.part,
+			});
+
+			this.sensor = New("ControllerPartSensor")({
+				Parent: this.part,
+				SearchDistance: this.GetHipheight() + 1,
 			});
 
 			this.vforce = New("VectorForce")({
@@ -130,48 +139,30 @@ class MovementEntity extends HealthEntity {
 		return math.clamp(this.size.Y - this.part.Size.Y, 0, math.huge);
 	}
 
-	CheckGround(b_AlreadyGrounded: boolean) {
-		const part_MovementObj = this.part;
-
-		const partpos = part_MovementObj.Position;
-		const partsize = part_MovementObj.Size;
-
-		const n_CheckSize = 0.25;
-		const v3_StartPos = partpos.add(new Vector3(0, partsize.Y * 0.5 - n_CheckSize * 0.5, 0));
-		const v3_ScanSize = new Vector3(partsize.X - 0.1, n_CheckSize, partsize.Z - 0.1);
-
-		const trace = workspace.Blockcast(
-			new CFrame(v3_StartPos),
-			v3_ScanSize,
-			new Vector3(0, -1000, 0),
-			movementTraceParams.GenerateTraceParams(false),
-		);
-		if (!trace) return;
-
-		const n_hipheightpos = part_MovementObj.Position.Y - part_MovementObj.Size.Y * 0.5 - this.GetHipheight();
-
-		if (trace.Position.Y >= n_hipheightpos - (b_AlreadyGrounded ? 1 : 0)) return trace;
-	}
-
 	UpdateMovement(buttons: UserButtons, n_DeltaTime: number) {
 		const part = this.part;
+		if (!UTIL_INSTEXIST(part) || part.Anchored) return;
 
-		let v3_FinalVelocity = part.AssemblyLinearVelocity;
-		let ray_GroundCheck = this.CheckGround(this.inst_CurrentGroundInstance !== undefined);
 		const n_hipheight = this.GetHipheight();
+		const cf_HitFrame = this.sensor.HitFrame;
+
+		let inst_SensedGround = this.sensor.SensedPart;
+		let v3_FinalVelocity = part.AssemblyLinearVelocity;
+
+		if (inst_SensedGround && !this.inst_CurrentGroundInstance) {
+			const bottom = this.part.Position.Y - this.part.Size.Y * 0.5 - n_hipheight;
+			if (cf_HitFrame.Position.Y < bottom) inst_SensedGround = undefined;
+		}
 
 		// slope check
-		if (ray_GroundCheck) {
-			const direction = CFrame.lookAt(
-				ray_GroundCheck.Position,
-				ray_GroundCheck.Position.add(ray_GroundCheck.Normal),
-			);
+		if (inst_SensedGround) {
+			const direction = CFrame.lookAt(cf_HitFrame.Position, cf_HitFrame.Position.add(this.sensor.HitNormal));
 			const angle = math.deg(direction.LookVector.Angle(new Vector3(0, 1, 0)));
-			if (angle > this.n_MaxSlopeAngle) ray_GroundCheck = undefined;
+			if (angle > this.n_MaxSlopeAngle) inst_SensedGround = undefined;
 		}
 
 		// jumping
-		if (ray_GroundCheck && buttons.jump) {
+		if (inst_SensedGround && buttons.jump) {
 			v3_FinalVelocity = new Vector3(
 				v3_FinalVelocity.X,
 				math.max(0, v3_FinalVelocity.Y) + this.n_JumpPower, // this is where the jump boosts happens
@@ -180,17 +171,18 @@ class MovementEntity extends HealthEntity {
 
 			part.Position = new Vector3(
 				part.Position.X,
-				ray_GroundCheck.Position.Y + n_hipheight + part.Size.Y * 0.5,
+				cf_HitFrame.Position.Y + n_hipheight + part.Size.Y * 0.5,
 				part.Position.Z,
 			);
 			part.Position = part.Position.add(new Vector3(0, 0.2, 0));
 
-			ray_GroundCheck = undefined;
+			inst_SensedGround = undefined;
 			this.inst_CurrentGroundInstance = undefined;
 		}
 
 		// ground movement
-		if (ray_GroundCheck) {
+		// we must rely on the old value to make sure we're ACTUALLY on the ground...
+		if (this.inst_CurrentGroundInstance) {
 			v3_FinalVelocity = this.ApplyFriction(v3_FinalVelocity, n_DeltaTime);
 			v3_FinalVelocity = this.GroundAccelerate(
 				v3_FinalVelocity,
@@ -209,33 +201,32 @@ class MovementEntity extends HealthEntity {
 
 			part.Position = new Vector3(
 				part.Position.X,
-				ray_GroundCheck.Position.Y + n_hipheight + part.Size.Y / 2,
+				cf_HitFrame.Position.Y + n_hipheight + part.Size.Y / 2,
 				part.Position.Z,
 			);
-
-			// air movement
-			if (!ray_GroundCheck && buttons.wishdir.Magnitude > 0) {
-				const vertical_speed = v3_FinalVelocity.Y;
-
-				v3_FinalVelocity = this.GroundAccelerate(
-					v3_FinalVelocity,
-					buttons.wishdir,
-					this.n_SideStrafeSpeed,
-					this.n_SideStrafeAccel,
-					n_DeltaTime,
-				).add(new Vector3(0, vertical_speed, 0));
-			}
-
-			this.vforce.Force = new Vector3(0, part.GetMass() * workspace.Gravity, 0);
-			this.vforce.Enabled = ray_GroundCheck !== undefined;
-
-			part.AssemblyLinearVelocity = v3_FinalVelocity;
-
-			this.inst_CurrentGroundInstance = ray_GroundCheck?.Instance;
-
-			this.origin = part.Position.sub(new Vector3(0, n_hipheight / 2, 0));
-			this.velocity = part.AssemblyLinearVelocity;
 		}
+
+		// air movement
+		if (!inst_SensedGround && buttons.wishdir.Magnitude > 0) {
+			const vertical_speed = v3_FinalVelocity.Y;
+
+			v3_FinalVelocity = this.GroundAccelerate(
+				v3_FinalVelocity,
+				buttons.wishdir,
+				this.n_SideStrafeSpeed,
+				this.n_SideStrafeAccel,
+				n_DeltaTime,
+			).add(new Vector3(0, vertical_speed, 0));
+		}
+
+		this.vforce.Force = new Vector3(0, part.GetMass() * workspace.Gravity, 0);
+		this.vforce.Enabled = inst_SensedGround !== undefined;
+
+		this.inst_CurrentGroundInstance = inst_SensedGround;
+		part.AssemblyLinearVelocity = v3_FinalVelocity;
+
+		this.origin = part.Position.sub(new Vector3(0, n_hipheight / 2, 0));
+		this.velocity = part.AssemblyLinearVelocity;
 	}
 }
 
