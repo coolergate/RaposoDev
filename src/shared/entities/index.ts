@@ -103,6 +103,27 @@ export function GetEntitiesThatIsA<K extends keyof Entities, E extends Entities[
 	return entities;
 }
 
+export function GetEntitiesFromInstance(inst: Instance) {
+	const list_Entities = new Array<BaseEntity>();
+
+	for (const [, info] of map_GameEntities) {
+		if (!info.ent.list_AssociatedInstances.includes(inst)) {
+			// Is it a descendant of one associated instance?
+			for (const inst2 of info.ent.list_AssociatedInstances) {
+				if (!inst.IsDescendantOf(inst2)) continue;
+				list_Entities.push(info.ent);
+				break;
+			}
+
+			continue;
+		}
+
+		list_Entities.push(info.ent);
+	}
+
+	return list_Entities;
+}
+
 export function InitializeEntitiesConstructor() {
 	map_EntityConstructor.clear();
 
