@@ -2,6 +2,7 @@ import { NetworkEvent, NetworkFunction } from "shared/core/network";
 import BaseEntity from "./BaseEntity";
 import { t } from "@rbxts/t";
 import { RunService } from "@rbxts/services";
+import { UTIL_GetTableDifference } from "shared/util/getdifference";
 
 /* -------------------------------------------------------------------------- */
 /*                            Interfaces and types                            */
@@ -24,13 +25,14 @@ const nete_EntityCreated = new NetworkEvent<[entityclass: keyof Entities, entity
 	"ent_Created",
 );
 const nete_EntityDeleted = new NetworkEvent<[entityid: string]>("ent_Deleted");
-const nete_EntityUpdated = new NetworkEvent<[id: string, classname: keyof Entities, content: Map<string, unknown>]>(
-	"ent_Updated",
-);
+const nete_EntityUpdated = new NetworkEvent<
+	[id: string, classname: keyof Entities, content: Map<string, unknown>, build: unknown[]]
+>("ent_Updated");
 const netf_RequestEntities = new NetworkFunction<[], t_EntityReplication[]>("ent_Request");
 
 const map_EntityConstructor = new Map<string, new (...args: unknown[]) => BaseEntity>();
 const map_GameEntities = new Map<string, { construct_args: unknown[]; ent: BaseEntity }>();
+const map_EntitiesReplicatedVariables = new Map<BaseEntity["id"], Map<string, unknown>>();
 
 /* -------------------------------------------------------------------------- */
 /*                                  Functions                                 */
@@ -160,9 +162,12 @@ function Client_GetReplicatedEntityById(classname: keyof Entities, id: string, .
 export function ReplicateEntity(entity: BaseEntity, players: "ALL" | Player[], ignore: Player[] = []) {
 	if (!RunService.IsServer()) return;
 
+	const info = map_GameEntities.get(entity.id);
+	if (!info) throw `Entity is unknown or is not on memory.`;
+
 	const values = entity.GetReplicatedVaribles();
 
-	nete_EntityUpdated.WriteMessage(true, players, ignore)(entity.id, entity.classname, values);
+	nete_EntityUpdated.WriteMessage(true, players, ignore)(entity.id, entity.classname, values, info.construct_args);
 }
 export function ReplicateEntitySpecific<E extends BaseEntity, K extends keyof E>(
 	entity: E,
@@ -172,6 +177,9 @@ export function ReplicateEntitySpecific<E extends BaseEntity, K extends keyof E>
 ) {
 	if (!RunService.IsServer()) return;
 
+	const info = map_GameEntities.get(entity.id);
+	if (!info) throw `Entity is unknown or is not on memory.`;
+
 	const values = entity.GetReplicatedVaribles();
 
 	for (const [key] of values) {
@@ -180,7 +188,7 @@ export function ReplicateEntitySpecific<E extends BaseEntity, K extends keyof E>
 		values.delete(key);
 	}
 
-	nete_EntityUpdated.WriteMessage(true, players, ignore)(entity.id, entity.classname, values);
+	nete_EntityUpdated.WriteMessage(true, players, ignore)(entity.id, entity.classname, values, info.construct_args);
 }
 
 export function FetchReplicatedEntities() {
@@ -193,6 +201,38 @@ export function FetchReplicatedEntities() {
 	}
 }
 
+export function UpdateNetworkedEntitiesVariables() {
+	if (!RunService.IsServer()) return;
+
+	// Check if entities are still in the game world
+	for (const [id, content] of map_EntitiesReplicatedVariables) {
+		if (IsEntityOnMemoryOrImSchizo(id)) continue;
+
+		content.clear();
+		map_EntitiesReplicatedVariables.delete(id);
+	}
+
+	// Update on the server-side
+	for (const [id, info] of map_GameEntities) {
+		const map_CurrentEntityContent = info.ent.GetReplicatedVaribles();
+		let map_LoggedEntityContent = map_EntitiesReplicatedVariables.get(id);
+
+		if (!map_LoggedEntityContent) {
+			map_LoggedEntityContent = map_CurrentEntityContent;
+			map_EntitiesReplicatedVariables.set(id, map_LoggedEntityContent);
+		}
+
+		if (UTIL_GetTableDifference(map_CurrentEntityContent, map_LoggedEntityContent)) {
+			nete_EntityUpdated.WriteMessage(true, "ALL", [])(
+				id,
+				info.ent.classname,
+				map_CurrentEntityContent,
+				info.construct_args,
+			);
+		}
+	}
+}
+
 /* -------------------------------------------------------------------------- */
 /*                                    Logic                                   */
 /* -------------------------------------------------------------------------- */
@@ -200,8 +240,8 @@ nete_EntityCreated.SetClientRecieve((classname, entityid, ...args) => {
 	Client_GetReplicatedEntityById(classname, entityid, ...args);
 });
 
-nete_EntityUpdated.SetClientRecieve((entityid, classname, content) => {
-	const entity = Client_GetReplicatedEntityById(classname, entityid);
+nete_EntityUpdated.SetClientRecieve((entityid, classname, content, build) => {
+	const entity = Client_GetReplicatedEntityById(classname, entityid, ...build);
 
 	for (const [key, value] of content) {
 		rawset(entity, key, value);

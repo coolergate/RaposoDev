@@ -1,7 +1,7 @@
 import { ReplicatedStorage, RunService } from "@rbxts/services";
 import { t } from "@rbxts/t";
 import GameController from "shared/controllers/prefab/GameController";
-import { GetEntitiesThatIsA, GetEntityFromId } from "shared/entities";
+import { GetEntitiesThatIsA, GetEntityFromId, UpdateNetworkedEntitiesVariables } from "shared/entities";
 import UTIL_UTC_Time from "shared/util/utctime";
 
 /* -------------------------------------------------------------------------- */
@@ -101,6 +101,9 @@ function Update(dt: number) {
 
 	// Update controllers (yet again)
 	for (const [name, comp] of controllers) comp.LateUpdate(dt);
+
+	// Update entities sync
+	UpdateNetworkedEntitiesVariables();
 }
 
 /* -------------------------------------------------------------------------- */
